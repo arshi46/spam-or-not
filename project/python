@@ -1,0 +1,86 @@
+import numpy as np
+import pandas as pd
+import nltk
+from nltk.corpus import stopwords
+import string
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import SVC
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+
+# Load dataset with encoding handling
+try:
+    df = pd.read_csv('spam.csv', encoding='utf-8')
+except UnicodeDecodeError:
+    df = pd.read_csv('spam.csv', encoding='latin1')
+
+# Inspect the dataset
+print(df.head())
+print(df.columns)
+
+# Rename relevant columns for clarity
+df.rename(columns={'v1': 'label', 'v2': 'text'}, inplace=True)
+
+# Remove duplicates
+df.drop_duplicates(inplace=True)
+print(df.shape)
+
+# Check for null values
+print(df.isnull().sum())
+
+# Download NLTK stopwords if not already downloaded
+nltk.download('stopwords')
+
+# Preprocessing function
+def process_text(text):
+    # Remove punctuation
+    nopunc = [char for char in text if char not in string.punctuation]
+    nopunc = ''.join(nopunc)
+
+    # Remove stopwords
+    clean_words = [word for word in nopunc.split() if word.lower() not in stopwords.words('english')]
+
+    return ' '.join(clean_words)
+
+# Apply preprocessing
+df['processed_text'] = df['text'].apply(process_text)
+
+# Feature extraction using TF-IDF
+tfidf_vectorizer = TfidfVectorizer()
+X = tfidf_vectorizer.fit_transform(df['processed_text'])
+y = df['label'].map({'ham': 0, 'spam': 1})
+
+# Split dataset into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.20, random_state=0)
+
+# Train Naive Bayes classifier
+nb_classifier = MultinomialNB()
+nb_classifier.fit(X_train, y_train)
+
+# Train Logistic Regression classifier
+lr_classifier = LogisticRegression(max_iter=1000)
+lr_classifier.fit(X_train, y_train)
+
+# Train SVM classifier
+svm_classifier = SVC(kernel='linear')
+svm_classifier.fit(X_train, y_train)
+
+# Evaluate Naive Bayes classifier on test data
+nb_test_pred = nb_classifier.predict(X_test)
+print('Naive Bayes Test Accuracy: ', accuracy_score(y_test, nb_test_pred))
+print('Confusion Matrix: \n', confusion_matrix(y_test, nb_test_pred))
+print(classification_report(y_test, nb_test_pred))
+
+# Evaluate Logistic Regression classifier on test data
+lr_test_pred = lr_classifier.predict(X_test)
+print('Logistic Regression Test Accuracy: ', accuracy_score(y_test, lr_test_pred))
+print('Confusion Matrix: \n', confusion_matrix(y_test, lr_test_pred))
+print(classification_report(y_test, lr_test_pred))
+
+# Evaluate SVM classifier on test data
+svm_test_pred = svm_classifier.predict(X_test)
+print('SVM Test Accuracy: ', accuracy_score(y_test, svm_test_pred))
+print('Confusion Matrix: \n', confusion_matrix(y_test, svm_test_pred))
+print(classification_report(y_test, svm_test_pred))
